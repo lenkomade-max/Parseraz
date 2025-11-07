@@ -43,11 +43,11 @@ export function sleep(ms: number): Promise<void> {
  */
 export const RATE_LIMIT = {
   // Delay between requests (milliseconds)
-  MIN_DELAY: 3000,  // 3 seconds
-  MAX_DELAY: 5000,  // 5 seconds
+  MIN_DELAY: 2000,  // 2 seconds
+  MAX_DELAY: 4000,  // 4 seconds
 
-  // Max jobs per parsing session
-  MAX_JOBS_PER_RUN: 20,
+  // Max jobs per parsing session (reduced because we fetch detail pages)
+  MAX_JOBS_PER_RUN: 5,
 
   // Retry configuration
   MAX_RETRIES: 3,

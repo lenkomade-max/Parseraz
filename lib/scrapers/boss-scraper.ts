@@ -52,27 +52,35 @@ export async function scrapeBossAz(options: ScraperOptions = {}): Promise<Parsed
 
       try {
         // Extract data from card
-        const titleLink = card.find('.results-i-title a')
-        const title = titleLink.text().trim()
-        const relativeUrl = titleLink.attr('href')
+        const title = card.find('.results-i-title').text().trim()
+        const relativeUrl = card.find('.results-i-link').attr('href')
         const sourceUrl = relativeUrl ? `${BASE_URL}${relativeUrl}` : ''
 
         const company = card.find('.results-i-company').text().trim()
-        const rawCategory = card.find('.results-i-category').text().trim()
-        const category = mapBossCategory(rawCategory)
 
-        const rawLocation = card.find('.results-i-loc').text().trim()
+        // Extract location and category from .results-i-secondary
+        const secondaryText = card.find('.results-i-secondary').text()
+        const rawLocation = secondaryText.split(/[\/→]/)[0]?.trim() || ''
         const location = mapLocation(rawLocation)
+
+        // Extract category from link in .results-i-secondary
+        const categoryLink = card.find('.results-i-secondary a').last()
+        const rawCategory = categoryLink.text().trim()
+        const category = mapBossCategory(rawCategory)
 
         const salary = card.find('.results-i-salary').text().trim() || 'Razılaşma yolu ilə'
 
-        // Phone might be visible without click
-        const phone = card.find('.results-i-contact').text().trim()
+        // Description from summary
+        const description = card.find('.results-i-summary').text().trim()
 
         if (!title || !sourceUrl) {
           logParseActivity('boss.az', 'Skipping - missing title/url', { index: i })
           continue
         }
+
+        // Fetch phone from detail page
+        await randomDelay(RATE_LIMIT.MIN_DELAY, RATE_LIMIT.MAX_DELAY)
+        const details = await fetchBossJobDetails(sourceUrl, userAgent)
 
         const job: ParsedJob = {
           source: 'boss.az',
@@ -83,7 +91,8 @@ export async function scrapeBossAz(options: ScraperOptions = {}): Promise<Parsed
           category,
           location,
           salary,
-          contact_phone: phone || undefined,
+          description: details.description || description || undefined,
+          contact_phone: details.contact_phone || undefined,
           raw_data: {
             raw_category: rawCategory,
             raw_location: rawLocation
@@ -91,7 +100,7 @@ export async function scrapeBossAz(options: ScraperOptions = {}): Promise<Parsed
         }
 
         jobs.push(job)
-        logParseActivity('boss.az', 'Parsed job', { title, company })
+        logParseActivity('boss.az', 'Parsed job', { title, company, hasPhone: !!details.contact_phone })
 
         // Delay between requests
         if (i < vacancyCards.length - 1) {
@@ -120,8 +129,8 @@ export async function scrapeBossAz(options: ScraperOptions = {}): Promise<Parsed
 }
 
 /**
- * Fetch detailed job info (if needed)
- * Note: Only use if phone is not visible on listing page
+ * Fetch detailed job info from detail page
+ * Fetches phone number and full description
  */
 export async function fetchBossJobDetails(jobUrl: string, userAgent?: string): Promise<Partial<ParsedJob>> {
   try {
@@ -129,25 +138,28 @@ export async function fetchBossJobDetails(jobUrl: string, userAgent?: string): P
       headers: {
         'User-Agent': userAgent || getRandomUserAgent(),
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'az-AZ,az;q=0.9,en;q=0.8',
       },
       timeout: RATE_LIMIT.TIMEOUT
     })
 
     const $ = cheerio.load(response.data)
 
-    // Extract description
-    const description = $('.job-info').text().trim()
+    // Extract phone number
+    let phone = $('.phone.params-i-val a').text().trim()
+    if (!phone) {
+      phone = $('.phone.params-i-val').text().trim()
+    }
 
-    // Extract phone if visible
-    const phone = $('.phone-number').text().trim()
-
-    // Extract deadline if present
-    const deadline = $('.deadline').text().trim()
+    // Extract full description
+    let description = $('.job_description.params-i-val').text().trim()
+    if (!description) {
+      description = $('.post-info').text().trim()
+    }
 
     return {
       description: description || undefined,
-      contact_phone: phone || undefined,
-      deadline: deadline || undefined
+      contact_phone: phone || undefined
     }
   } catch (error: any) {
     logParseActivity('boss.az', 'Error fetching details', { url: jobUrl, error: error.message })

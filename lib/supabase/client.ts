@@ -4,17 +4,8 @@ import type { Job } from '../../types'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY! // Use service role for server-side
 
-console.log('[Supabase Client] Checking environment variables:', {
-  hasUrl: !!supabaseUrl,
-  hasKey: !!supabaseKey,
-  urlLength: supabaseUrl?.length || 0,
-  keyLength: supabaseKey?.length || 0
-})
-
 if (!supabaseUrl || !supabaseKey) {
-  const error = `Missing Supabase environment variables - URL: ${!!supabaseUrl}, Key: ${!!supabaseKey}`
-  console.error('[Supabase Client]', error)
-  throw new Error(error)
+  throw new Error('Missing Supabase environment variables')
 }
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
