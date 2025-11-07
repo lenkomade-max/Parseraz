@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { parseAllSources, parseSingleSource } from '../lib/parser'
+import { parseAllSources, parseSingleSource } from '../../lib/parser'
+import type { ParseResult } from '../../types'
 
 /**
  * Main parsing endpoint
@@ -41,15 +42,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Calculate summary
     const summary = {
-      success: results.every(r => r.success),
+      success: results.every((r: ParseResult) => r.success),
       sources: results.length,
-      stats: results.reduce((acc, r) => ({
+      stats: results.reduce((acc: { total: number, new: number, duplicates: number, failed: number }, r: ParseResult) => ({
         total: acc.total + r.stats.total,
         new: acc.new + r.stats.new,
         duplicates: acc.duplicates + r.stats.duplicates,
         failed: acc.failed + r.stats.failed
       }), { total: 0, new: 0, duplicates: 0, failed: 0 }),
-      results: results.map(r => ({
+      results: results.map((r: ParseResult) => ({
         source: r.source,
         success: r.success,
         stats: r.stats,
