@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { parseAllSources, parseSingleSource } from '../../lib/parser'
-import type { ParseResult } from '../../types'
+import { parseAllSources, parseSingleSource } from '../lib/parser'
+import type { ParseResult } from '../types'
 
 /**
  * Main parsing endpoint
