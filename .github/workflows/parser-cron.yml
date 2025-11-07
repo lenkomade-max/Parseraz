@@ -1,0 +1,45 @@
+name: Leyla Parser Cron
+
+on:
+  # Run every hour
+  schedule:
+    - cron: '0 * * * *'
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  parse:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Vercel Parser
+        run: |
+          echo "Triggering Leyla Parser..."
+
+          RESPONSE=$(curl -X POST "${{ secrets.VERCEL_DEPLOY_URL }}/api/parse" \
+            -H "Authorization: Bearer ${{ secrets.PARSER_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d '{"source": "all"}' \
+            -w "\n%{http_code}" \
+            -s)
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | head -n-1)
+
+          echo "Response Code: $HTTP_CODE"
+          echo "Response Body: $BODY"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Error: Parser failed with code $HTTP_CODE"
+            exit 1
+          fi
+
+          echo "Parser completed successfully!"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Leyla Parser Summary" >> $GITHUB_STEP_SUMMARY
+          echo "**Time:** $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
